@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Writing a backend API in Golang | Jared Baur</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="description" content="Recently I developed a web app for mood tracking (check it out here), and I wrote the backend using the Gin framework in Golang! The Gin framework was super easy to get started with and provides a good amount of extensibility for using sessions, middlewares, and more.
+Basic Router A basic server with a few endpoints can be written with just a few lines of code. Within this block, a session store is initialized, along with common session options, so that user sessions can persist on the front-end." />
+  <meta name="author" content="" />
+  <meta name="generator" content="Hugo 0.76.3" />
+  <link href="/index.xml" rel="alternate" type="application/rss+xml" title="Jared Baur Feed" />
+  <link rel="shortcut icon" href="https://jmbaur.github.iofavicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="/style.7c6d960b20273ed88bc63a60591a57e7739fb21f243b77f27c3bc730ef6205c0.css" />
+  <link rel="stylesheet" href="https://jmbaur.github.iocustom.css" />
+  <script defer src="/script.9df38729991a6ec08d83b60514e841529cebd5ccc800cf8e1f98fb63e73aaa73.js"></script>
+</head>
+<body>
+<div class="pure-g">
+  <div class="pure-u-1-24 pure-u-md-5-24"></div>
+  <div class="pure-u-22-24 pure-u-md-14-24">
+  
+<div class="navigation">
+  <div class="navigation-header clearfix">
+    <div class="pure-menu pure-menu-horizontal">
+      <a class="pure-menu-heading pure-menu-link" href="/">
+        Jared Baur
+      </a>
+      <ul class="pure-menu-list navigation-header-subtitle pull-end">
+        <li class="pure-menu-item pure-menu-disabled">Portfolio, Blog, etc. </li>
+      </ul>
+    </div>
+  </div>
+  <div class="navigation-content">
+    <div class="pure-menu pure-menu-horizontal">
+      <ul class="pure-menu-list">
+        <li class="pure-menu-item" title="All posts">
+          <a  class="pure-menu-link" href="/posts/">Posts</a>
+        </li>
+        <li class="pure-menu-item" title="About">
+          <a  class="pure-menu-link" href="/about">About</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+  
+<div>
+  <div>
+    <h2 class="post-title">
+      
+      Writing a backend API in Golang
+    </h2>
+    
+
+  </div>
+  <div>
+    <p>Recently I developed a web app for mood tracking (check it out <a href="https://dailymoodtracker.com">here</a>), and I wrote the backend using the Gin framework in Golang! The <a href="https://github.com/gin-gonic/gin">Gin</a> framework was super easy to get started with and provides a good amount of extensibility for using sessions, middlewares, and more.</p>
+<h3 id="basic-router">Basic Router</h3>
+<p>A basic server with a few endpoints can be written with just a few lines of code. Within this block, a session store is initialized, along with common session options, so that user sessions can persist on the front-end. All middleware used by the router are implemented by <code>router.Use()</code>. Each route is specified with its CRUD verb (get, post, put, patch, &hellip;) and passing in the path to the endpoint along with the handler for the request.</p>
+<div class="highlight"><pre style="color:#d0d0d0;background-color:#202020;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-golang" data-lang="golang"><span style="color:#6ab825;font-weight:bold">package</span> main
+
+<span style="color:#6ab825;font-weight:bold">import</span> (
+	<span style="color:#ed9d13">&#34;net/http&#34;</span>
+	<span style="color:#ed9d13">&#34;github.com/gin-gonic/gin&#34;</span>
+	<span style="color:#ed9d13">&#34;github.com/gin-contrib/sessions&#34;</span>
+)
+
+<span style="color:#6ab825;font-weight:bold">func</span> <span style="color:#447fcf">main</span>() {
+	router := gin.<span style="color:#447fcf">Default</span>()
+
+	store := cookie.<span style="color:#447fcf">NewStore</span>([]<span style="color:#24909d">byte</span>(<span style="color:#ed9d13">&#34;sessionKey&#34;</span>))
+	store.<span style="color:#447fcf">Options</span>(sessions.Options{SameSite: http.SameSiteLaxMode, Path: <span style="color:#ed9d13">&#34;/&#34;</span>, HttpOnly: <span style="color:#6ab825;font-weight:bold">true</span>})
+
+	router.<span style="color:#447fcf">Use</span>(sessions.<span style="color:#447fcf">Sessions</span>(<span style="color:#ed9d13">&#34;session&#34;</span>, store))
+
+	<span style="color:#999;font-style:italic">// endpoints
+</span><span style="color:#999;font-style:italic"></span>	router.<span style="color:#447fcf">POST</span>(<span style="color:#ed9d13">&#34;/register&#34;</span>, Register)
+	router.<span style="color:#447fcf">POST</span>(<span style="color:#ed9d13">&#34;/login&#34;</span>, Login)
+	router.<span style="color:#447fcf">GET</span>(<span style="color:#ed9d13">&#34;/logout&#34;</span>, <span style="color:#447fcf">AuthRequired</span>(), Logout)
+
+	router.<span style="color:#447fcf">Run</span>(<span style="color:#ed9d13">&#34;:8000&#34;</span>)
+}
+</code></pre></div><h3 id="handler-functions">Handler Functions</h3>
+<p>A handler function for an endpoint handles all the business logic. For example, in a login handler, we would take some values from the request body, use them to contact the database, compare the hashed password, and send the appropriate response to the client. The request body can be translated into a Golang struct by specifying the JSON names to each value in the struct (I found this <a href="https://mholt.github.io/json-to-go/">JSON to Golang converter</a> to be extremely helpful). The method <code>c.ShouldBindJSON</code> as well as <code>c.BindJSON</code> will attempt to bind the request body to the struct, returning an error if the JSON could not be bound. This will happen if the specified JSON names in the struct do not match the request body&rsquo;s names, or if a value is missing from the body (when <code>binding:&quot;required&quot;</code> is specified in the struct).</p>
+<p>Assuming the client has been validated successfully, you can save info to their session by using <code>session.Set()</code>, which takes in a key and value. In future requests, you can use <code>session.Get()</code> and pass in the expected key in order to get whatever info was set. If you do <strong>not</strong> perform <code>session.Save()</code>, the key-value pair will not be saved to their session.</p>
+<div class="highlight"><pre style="color:#d0d0d0;background-color:#202020;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-golang" data-lang="golang"><span style="color:#6ab825;font-weight:bold">type</span> Person <span style="color:#6ab825;font-weight:bold">struct</span> {
+	Username <span style="color:#6ab825;font-weight:bold">string</span> <span style="color:#ed9d13">`json:&#34;username&#34;, binding:&#34;required&#34;`</span>
+	Password <span style="color:#6ab825;font-weight:bold">string</span> <span style="color:#ed9d13">`json:&#34;password&#34;, binding:&#34;required&#34;`</span>
+}
+
+<span style="color:#6ab825;font-weight:bold">func</span> <span style="color:#447fcf">Login</span>(c *gin.Context) {
+	<span style="color:#6ab825;font-weight:bold">var</span> person Person
+	<span style="color:#6ab825;font-weight:bold">if</span> err := c.<span style="color:#447fcf">ShouldBindJSON</span>(&amp;person); err != <span style="color:#6ab825;font-weight:bold">nil</span> {
+		c.<span style="color:#447fcf">JSON</span>(http.StatusBadRequest, <span style="color:#ed9d13">&#34;Could not parse JSON&#34;</span>)
+		<span style="color:#6ab825;font-weight:bold">return</span>
+	}
+
+	<span style="color:#999;font-style:italic">// Contact DB for relevant user and check if hashed password matches
+</span><span style="color:#999;font-style:italic"></span>
+	session := sessions.<span style="color:#447fcf">Default</span>(c)
+	session.<span style="color:#447fcf">Set</span>(<span style="color:#ed9d13">&#34;user_id&#34;</span>, id)
+	session.<span style="color:#447fcf">Save</span>()
+
+	c.<span style="color:#447fcf">JSON</span>(http.StatusOK, <span style="color:#ed9d13">&#34;Logged in&#34;</span>)
+}
+</code></pre></div><h3 id="custom-middleware">Custom Middleware</h3>
+<p>Writing middleware with gin is fairly straight forward. I wrote a custom authorization function that I use for endpoints that send user information back to the client, thus first requiring the user to have a user session (i.e. be logged in). Middleware functions can be written similarly to handler functions, it will return a function that receives <code>c *gin.Context</code> and using that to obtain information about the request. The objective of this piece of middleware is to check whether there is an existing user session for a given request and set a variable for the handler function to use. If the certain key cannot be obtained from the session, the request is aborted and the handler function is never reached.</p>
+<div class="highlight"><pre style="color:#d0d0d0;background-color:#202020;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-golang" data-lang="golang"><span style="color:#6ab825;font-weight:bold">func</span> <span style="color:#447fcf">AuthRequired</span>() gin.HandlerFunc {
+	<span style="color:#6ab825;font-weight:bold">return</span> <span style="color:#6ab825;font-weight:bold">func</span>(c *gin.Context) {
+                session := sessions.<span style="color:#447fcf">Default</span>(c)
+                userId := session.<span style="color:#447fcf">Get</span>(<span style="color:#ed9d13">&#34;user_id&#34;</span>)
+		<span style="color:#6ab825;font-weight:bold">if</span> userId == <span style="color:#6ab825;font-weight:bold">nil</span> {
+                        c.<span style="color:#447fcf">Abort</span>()
+                        c.<span style="color:#447fcf">JSON</span>(http.StatusUnauthorized, <span style="color:#ed9d13">&#34;User not logged in&#34;</span>)
+		} <span style="color:#6ab825;font-weight:bold">else</span> {
+                        c.<span style="color:#447fcf">Set</span>(<span style="color:#ed9d13">&#34;userId&#34;</span>, userId.(<span style="color:#6ab825;font-weight:bold">string</span>))
+		}
+	}
+}
+</code></pre></div><p>Using the middleware can be done on a per route basis or as a group. To use, invoke the middleware function on the route/group.</p>
+<div class="highlight"><pre style="color:#d0d0d0;background-color:#202020;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-golang" data-lang="golang">router.<span style="color:#447fcf">GET</span>(<span style="color:#ed9d13">&#34;/logout&#34;</span>, <span style="color:#447fcf">AuthRequired</span>(), HandlerFunc)
+
+assets := router.<span style="color:#447fcf">Group</span>(<span style="color:#ed9d13">&#34;assets&#34;</span>)
+assets.<span style="color:#447fcf">Use</span>(<span style="color:#447fcf">AuthRequired</span>())
+{
+	assets.<span style="color:#447fcf">GET</span>(<span style="color:#ed9d13">&#34;/assets&#34;</span>, GetAssets)
+	assets.<span style="color:#447fcf">POST</span>(<span style="color:#ed9d13">&#34;/assets&#34;</span>, PostAssets)
+}
+</code></pre></div><p><img src="/img/gin-api/gopher.png" alt="Golang Gopher"></p>
+
+  </div>
+</div>
+  <div class="footer">
+  <div class="pure-menu pure-menu-horizontal">
+    <ul class="pure-menu-list">
+      <li class="pure-menu-item" title="GitHub">
+        <a class="pure-menu-link" href="https://github.com/jmbaur">GitHub</a>
+      </li>
+      <li class="pure-menu-item" title="LinkedIn">
+        <a class="pure-menu-link" href="https://linkedin.com/in/jared-baur">LinkedIn</a>
+      </li>
+      <li class="pure-menu-item" title="RSS Feed">
+        <a href="/index.xml" class="pure-menu-link">RSS</a>
+      </li>
+      <li class="pure-menu-item fix-cursor-pointer" title="Go to top">
+        <a class="pure-menu-link" id="btn-gototop">
+          <span class="fix-placement-up">&#x21e7;&#xfe0e;</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+  </div>
+  <div class="pure-u-1-24 pure-u-md-5-24"></div>
+</div>
+</body>
+</html>

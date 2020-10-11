@@ -1,0 +1,91 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+	<channel>
+		<title>backend on Jared Baur</title>
+		<link>https://jmbaur.github.io/tags/backend/</link>
+		<description>Recent content in backend on Jared Baur</description>
+		<generator>Hugo 0.76.3 -- gohugo.io</generator>
+		<language>en</language>
+		<lastBuildDate>Thu, 12 Mar 2020 15:22:01 -0700</lastBuildDate>
+		<atom:link href="https://jmbaur.github.io/tags/backend/index.xml" rel="self" type="application/rss+xml" />
+		<item>
+			<title>Writing a backend API in Golang</title>
+			<link>https://jmbaur.github.io/posts/mood-tracker/</link>
+			<pubDate>Thu, 12 Mar 2020 15:22:01 -0700</pubDate>
+			<guid isPermaLink="true">https://jmbaur.github.io/posts/mood-tracker/</guid>
+			<description>&lt;p&gt;Recently I developed a web app for mood tracking (check it out &lt;a href=&#34;https://dailymoodtracker.com&#34;&gt;here&lt;/a&gt;), and I wrote the backend using the Gin framework in Golang! The &lt;a href=&#34;https://github.com/gin-gonic/gin&#34;&gt;Gin&lt;/a&gt; framework was super easy to get started with and provides a good amount of extensibility for using sessions, middlewares, and more.&lt;/p&gt;
+&lt;h3 id=&#34;basic-router&#34;&gt;Basic Router&lt;/h3&gt;
+&lt;p&gt;A basic server with a few endpoints can be written with just a few lines of code. Within this block, a session store is initialized, along with common session options, so that user sessions can persist on the front-end. All middleware used by the router are implemented by &lt;code&gt;router.Use()&lt;/code&gt;. Each route is specified with its CRUD verb (get, post, put, patch, &amp;hellip;) and passing in the path to the endpoint along with the handler for the request.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#d0d0d0;background-color:#202020;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-golang&#34; data-lang=&#34;golang&#34;&gt;&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;package&lt;/span&gt; main
+
+&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;import&lt;/span&gt; (
+	&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;net/http&amp;#34;&lt;/span&gt;
+	&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;github.com/gin-gonic/gin&amp;#34;&lt;/span&gt;
+	&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;github.com/gin-contrib/sessions&amp;#34;&lt;/span&gt;
+)
+
+&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;func&lt;/span&gt; &lt;span style=&#34;color:#447fcf&#34;&gt;main&lt;/span&gt;() {
+	router := gin.&lt;span style=&#34;color:#447fcf&#34;&gt;Default&lt;/span&gt;()
+
+	store := cookie.&lt;span style=&#34;color:#447fcf&#34;&gt;NewStore&lt;/span&gt;([]&lt;span style=&#34;color:#24909d&#34;&gt;byte&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;sessionKey&amp;#34;&lt;/span&gt;))
+	store.&lt;span style=&#34;color:#447fcf&#34;&gt;Options&lt;/span&gt;(sessions.Options{SameSite: http.SameSiteLaxMode, Path: &lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;/&amp;#34;&lt;/span&gt;, HttpOnly: &lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;true&lt;/span&gt;})
+
+	router.&lt;span style=&#34;color:#447fcf&#34;&gt;Use&lt;/span&gt;(sessions.&lt;span style=&#34;color:#447fcf&#34;&gt;Sessions&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;session&amp;#34;&lt;/span&gt;, store))
+
+	&lt;span style=&#34;color:#999;font-style:italic&#34;&gt;// endpoints
+&lt;/span&gt;&lt;span style=&#34;color:#999;font-style:italic&#34;&gt;&lt;/span&gt;	router.&lt;span style=&#34;color:#447fcf&#34;&gt;POST&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;/register&amp;#34;&lt;/span&gt;, Register)
+	router.&lt;span style=&#34;color:#447fcf&#34;&gt;POST&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;/login&amp;#34;&lt;/span&gt;, Login)
+	router.&lt;span style=&#34;color:#447fcf&#34;&gt;GET&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;/logout&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#447fcf&#34;&gt;AuthRequired&lt;/span&gt;(), Logout)
+
+	router.&lt;span style=&#34;color:#447fcf&#34;&gt;Run&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;:8000&amp;#34;&lt;/span&gt;)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id=&#34;handler-functions&#34;&gt;Handler Functions&lt;/h3&gt;
+&lt;p&gt;A handler function for an endpoint handles all the business logic. For example, in a login handler, we would take some values from the request body, use them to contact the database, compare the hashed password, and send the appropriate response to the client. The request body can be translated into a Golang struct by specifying the JSON names to each value in the struct (I found this &lt;a href=&#34;https://mholt.github.io/json-to-go/&#34;&gt;JSON to Golang converter&lt;/a&gt; to be extremely helpful). The method &lt;code&gt;c.ShouldBindJSON&lt;/code&gt; as well as &lt;code&gt;c.BindJSON&lt;/code&gt; will attempt to bind the request body to the struct, returning an error if the JSON could not be bound. This will happen if the specified JSON names in the struct do not match the request body&amp;rsquo;s names, or if a value is missing from the body (when &lt;code&gt;binding:&amp;quot;required&amp;quot;&lt;/code&gt; is specified in the struct).&lt;/p&gt;
+&lt;p&gt;Assuming the client has been validated successfully, you can save info to their session by using &lt;code&gt;session.Set()&lt;/code&gt;, which takes in a key and value. In future requests, you can use &lt;code&gt;session.Get()&lt;/code&gt; and pass in the expected key in order to get whatever info was set. If you do &lt;strong&gt;not&lt;/strong&gt; perform &lt;code&gt;session.Save()&lt;/code&gt;, the key-value pair will not be saved to their session.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#d0d0d0;background-color:#202020;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-golang&#34; data-lang=&#34;golang&#34;&gt;&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;type&lt;/span&gt; Person &lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;struct&lt;/span&gt; {
+	Username &lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;string&lt;/span&gt; &lt;span style=&#34;color:#ed9d13&#34;&gt;`json:&amp;#34;username&amp;#34;, binding:&amp;#34;required&amp;#34;`&lt;/span&gt;
+	Password &lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;string&lt;/span&gt; &lt;span style=&#34;color:#ed9d13&#34;&gt;`json:&amp;#34;password&amp;#34;, binding:&amp;#34;required&amp;#34;`&lt;/span&gt;
+}
+
+&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;func&lt;/span&gt; &lt;span style=&#34;color:#447fcf&#34;&gt;Login&lt;/span&gt;(c *gin.Context) {
+	&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;var&lt;/span&gt; person Person
+	&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;if&lt;/span&gt; err := c.&lt;span style=&#34;color:#447fcf&#34;&gt;ShouldBindJSON&lt;/span&gt;(&amp;amp;person); err != &lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;nil&lt;/span&gt; {
+		c.&lt;span style=&#34;color:#447fcf&#34;&gt;JSON&lt;/span&gt;(http.StatusBadRequest, &lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;Could not parse JSON&amp;#34;&lt;/span&gt;)
+		&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;return&lt;/span&gt;
+	}
+
+	&lt;span style=&#34;color:#999;font-style:italic&#34;&gt;// Contact DB for relevant user and check if hashed password matches
+&lt;/span&gt;&lt;span style=&#34;color:#999;font-style:italic&#34;&gt;&lt;/span&gt;
+	session := sessions.&lt;span style=&#34;color:#447fcf&#34;&gt;Default&lt;/span&gt;(c)
+	session.&lt;span style=&#34;color:#447fcf&#34;&gt;Set&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;user_id&amp;#34;&lt;/span&gt;, id)
+	session.&lt;span style=&#34;color:#447fcf&#34;&gt;Save&lt;/span&gt;()
+
+	c.&lt;span style=&#34;color:#447fcf&#34;&gt;JSON&lt;/span&gt;(http.StatusOK, &lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;Logged in&amp;#34;&lt;/span&gt;)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id=&#34;custom-middleware&#34;&gt;Custom Middleware&lt;/h3&gt;
+&lt;p&gt;Writing middleware with gin is fairly straight forward. I wrote a custom authorization function that I use for endpoints that send user information back to the client, thus first requiring the user to have a user session (i.e. be logged in). Middleware functions can be written similarly to handler functions, it will return a function that receives &lt;code&gt;c *gin.Context&lt;/code&gt; and using that to obtain information about the request. The objective of this piece of middleware is to check whether there is an existing user session for a given request and set a variable for the handler function to use. If the certain key cannot be obtained from the session, the request is aborted and the handler function is never reached.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#d0d0d0;background-color:#202020;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-golang&#34; data-lang=&#34;golang&#34;&gt;&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;func&lt;/span&gt; &lt;span style=&#34;color:#447fcf&#34;&gt;AuthRequired&lt;/span&gt;() gin.HandlerFunc {
+	&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;func&lt;/span&gt;(c *gin.Context) {
+                session := sessions.&lt;span style=&#34;color:#447fcf&#34;&gt;Default&lt;/span&gt;(c)
+                userId := session.&lt;span style=&#34;color:#447fcf&#34;&gt;Get&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;user_id&amp;#34;&lt;/span&gt;)
+		&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;if&lt;/span&gt; userId == &lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;nil&lt;/span&gt; {
+                        c.&lt;span style=&#34;color:#447fcf&#34;&gt;Abort&lt;/span&gt;()
+                        c.&lt;span style=&#34;color:#447fcf&#34;&gt;JSON&lt;/span&gt;(http.StatusUnauthorized, &lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;User not logged in&amp;#34;&lt;/span&gt;)
+		} &lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;else&lt;/span&gt; {
+                        c.&lt;span style=&#34;color:#447fcf&#34;&gt;Set&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;userId&amp;#34;&lt;/span&gt;, userId.(&lt;span style=&#34;color:#6ab825;font-weight:bold&#34;&gt;string&lt;/span&gt;))
+		}
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Using the middleware can be done on a per route basis or as a group. To use, invoke the middleware function on the route/group.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#d0d0d0;background-color:#202020;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-golang&#34; data-lang=&#34;golang&#34;&gt;router.&lt;span style=&#34;color:#447fcf&#34;&gt;GET&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;/logout&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#447fcf&#34;&gt;AuthRequired&lt;/span&gt;(), HandlerFunc)
+
+assets := router.&lt;span style=&#34;color:#447fcf&#34;&gt;Group&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;assets&amp;#34;&lt;/span&gt;)
+assets.&lt;span style=&#34;color:#447fcf&#34;&gt;Use&lt;/span&gt;(&lt;span style=&#34;color:#447fcf&#34;&gt;AuthRequired&lt;/span&gt;())
+{
+	assets.&lt;span style=&#34;color:#447fcf&#34;&gt;GET&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;/assets&amp;#34;&lt;/span&gt;, GetAssets)
+	assets.&lt;span style=&#34;color:#447fcf&#34;&gt;POST&lt;/span&gt;(&lt;span style=&#34;color:#ed9d13&#34;&gt;&amp;#34;/assets&amp;#34;&lt;/span&gt;, PostAssets)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;img src=&#34;https://jmbaur.github.io/img/gin-api/gopher.png&#34; alt=&#34;Golang Gopher&#34;&gt;&lt;/p&gt;
+</description>
+		</item>
+	</channel>
+</rss>
